@@ -2,7 +2,7 @@
 // Sends one museum placard for an ordinary office object to /output/entry.txt.
 import { mkdirSync as makeDir, writeFileSync as writeFile } from "node:fs";
 
-// The placard, written in this session: a stapler recast as a ritual
+// The placard, written fresh in this session: a stapler recast as a ritual
 // object — catalogue date, pressed-steel material, and a donor, the
 // Department of Meetings, whose offerings of paper no one ever read.
 // Dry curator's voice throughout; every word earns its place.
