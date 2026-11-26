@@ -1,40 +1,48 @@
-// test.mjs — checks for the office-placard entry writer.
-// Run: node --test test.mjs
+// Checks for the one-line placard writer, composed in this session.
+// Run with: node --test test.mjs
 import test from "node:test";
-import { strict as assert } from "node:assert";
-import { execFileSync as runFile } from "node:child_process";
-import { mkdtempSync as makeTemp, readFileSync as readText, rmSync as removeTree } from "node:fs";
-import { tmpdir as tempRoot } from "node:os";
-import { join as joinPath } from "node:path";
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-// Builds the entry once into a fresh temp folder and returns the text.
-function placardOnce() {
-  const folder = makeTemp(joinPath(tempRoot(), "office-placard-"));
-  runFile(process.execPath, ["main.ts"], {
+const EXPECTED =
+  "Ritual Stapler, c. 1994, pressed steel and regret. Used to bind offerings of paper no one read. Donated by the Department of Meetings.";
+
+// Execute the writer once against a fresh scratch directory and
+// hand back whatever landed in entry.txt there.
+function buildOnce() {
+  const scratch = mkdtempSync(join(tmpdir(), "placard-check-"));
+  execFileSync(process.execPath, ["main.ts"], {
     cwd: import.meta.dirname,
-    env: { ...process.env, MAKEFUN_OUTPUT_DIR: folder },
-    encoding: "utf8",
+    env: { ...process.env, MAKEFUN_OUTPUT_DIR: scratch },
+    stdio: "pipe",
   });
-  const text = readText(joinPath(folder, "entry.txt"), "utf8");
-  removeTree(folder, { recursive: true, force: true });
-  return text;
+  return readFileSync(join(scratch, "entry.txt"), "utf8");
 }
 
-test("placard fits the gate: 1–180 characters, a single non-blank line", () => {
-  const text = placardOnce();
-  assert.ok(text.length >= 1, "empty entry");
-  assert.ok(text.length <= 180, `too long: ${text.length}`);
-  assert.ok(text.trim().length > 0, "blank entry");
-  assert.ok(text.indexOf("\n") === -1, "must be one line");
+test("entry obeys the gate: a single non-blank line of 1-180 chars", () => {
+  const entry = buildOnce();
+  assert.ok(entry.length >= 1 && entry.length <= 180, `length ${entry.length}`);
+  assert.equal(entry.includes("\n"), false);
+  assert.ok(entry.trim().length > 0);
 });
 
-test("the placard is identical on every build", () => {
-  assert.equal(placardOnce(), placardOnce());
+test("every build emits the identical placard, byte for byte", () => {
+  assert.equal(buildOnce(), EXPECTED);
+  assert.equal(buildOnce(), buildOnce());
 });
 
-test("the placard names the stapler, its date, and its donor", () => {
-  const text = placardOnce();
-  assert.match(text, /Ritual Stapler/);
-  assert.match(text, /c\. 1994/);
-  assert.match(text, /Department of Meetings/);
+test("the label names the stapler, its circa date and its donor", () => {
+  const entry = buildOnce();
+  assert.match(entry, /Ritual Stapler/);
+  assert.match(entry, /c\. 1994/);
+  assert.match(entry, /Department of Meetings/);
+});
+
+test("the file carries no trailing newline or carriage return", () => {
+  const entry = buildOnce();
+  assert.equal(entry.endsWith("\n"), false);
+  assert.equal(entry.includes("\r"), false);
 });
